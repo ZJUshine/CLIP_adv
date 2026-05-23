@@ -6,19 +6,6 @@
 
 L∞ PGD（targeted），Madry et al. 2018 的标准实现：
 
-```
-δ ← Uniform(-ε, ε)                                  # random start
-for t = 1 .. T:
-    g  ← ∇_δ  CE( f(clip01(x + δ)),  y_target )     # f 内部自带 CLIP 归一化
-    δ  ← δ − α · sign(g)                            # targeted: 反梯度
-    δ  ← clip_{L∞≤ε}(δ)                             # 投影回 ε-ball
-    δ  ← clip01(x + δ) − x                          # 保持像素 ∈ [0,1]
-return x + δ
-```
-
-关键实现要点：
-- ε 预算施加在 **[0, 1] 像素空间**，CLIP 的 mean/std 归一化封装在 forward 内，避免常见的"在归一化空间设 ε"的语义错误。
-- 损失使用 `F.cross_entropy(logits, target_label)`（logits + 类别索引），而非旧版本里把 softmax 概率喂给 CE 的写法。
 
 ## 目录结构
 
@@ -38,23 +25,9 @@ CLIP_adv/
 
 ## 克隆与初始化
 
-由于 `CLIP/` 是子模块，克隆时需要带上 `--recursive`：
-
 ```bash
 git clone --recursive https://github.com/<your-name>/CLIP_adv.git
 cd CLIP_adv
-```
-
-如果已经克隆但忘了 `--recursive`，可以补拉子模块：
-
-```bash
-git submodule update --init --recursive
-```
-
-更新子模块到上游最新提交：
-
-```bash
-git submodule update --remote CLIP
 ```
 
 ## 安装依赖
