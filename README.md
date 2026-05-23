@@ -1,6 +1,6 @@
 # CLIP_adv
 
-针对 OpenAI [CLIP](https://github.com/openai/CLIP) 的定向 **L∞ PGD** 对抗攻击演示。脚本在 CIFAR-10 上选取一张图片，在 [0, 1] 像素空间内迭代生成扰动 δ，使 ‖δ‖∞ ≤ ε，并把 CLIP 的分类结果定向迫近到指定目标类别。每若干步保存原图、对抗样本、扰动热力图三联可视化到 `result/`。
+针对 OpenAI [CLIP](https://github.com/openai/CLIP) 的定向 **L∞ PGD** 对抗攻击演示。脚本在 CIFAR-10 上选取一张图片，在 [0, 1] 像素空间内迭代生成扰动 δ，使 ‖δ‖∞ ≤ ε，并把 CLIP 的分类结果定向迫近到指定目标类别。每若干步保存原图、对抗样本、δ 可视化和类别概率分布的四联图到 `result/`。
 
 ## 算法
 
@@ -57,12 +57,16 @@ python CLIP_adv.py
 | `TARGETED` | 定向 / 非定向攻击 | `True` |
 | `TARGET_LABEL` | 攻击目标类别索引（0–9） | `1` (automobile) |
 | `SAMPLE_INDEX` | test set 中被攻击图片的索引 | `1` |
-| `SNAPSHOT_EVERY` | 每多少步保存一次三联可视化 | `5` |
+| `SNAPSHOT_EVERY` | 每多少步保存一次过程可视化 | `5` |
 
 ## 输出
 
-- `result/adv_{step}.png` —— [原图 | 当前对抗样本 | `|δ| / ε` 热力图] 三联图
-- `result/result.png` —— 最终对比图：原图预测 vs. 对抗样本预测 vs. 类别概率分布柱状图
+- `result/adv_{step}.png` —— 2×2 四联图：
+  - **左上**：原图（标注 clean 预测类别）
+  - **右上**：当前对抗样本（标注当前预测类别）
+  - **左下**：`adversarial − original`，δ 经 `(δ/(2ε)) + 0.5` 重缩放到 [0, 1] 的 RGB 显示，灰色像素 = 0 扰动
+  - **右下**：original vs. adversarial 在 10 类上的概率分布对比条形图
+- `result/result.png` —— 收敛后的最终对比图（原图 | 对抗样本 | 概率分布）
 - 终端打印每个 snapshot 步的 loss、p[真类]、p[目标类]，以及最终的实际 L∞ 扰动幅度（应当 ≤ ε）
 
 ## 效果示例
