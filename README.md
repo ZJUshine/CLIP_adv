@@ -26,7 +26,7 @@ CLIP_adv/
 ## 克隆与初始化
 
 ```bash
-git clone --recursive https://github.com/<your-name>/CLIP_adv.git
+git clone --recursive https://github.com/ZJUshine/CLIP_adv.git
 cd CLIP_adv
 ```
 
