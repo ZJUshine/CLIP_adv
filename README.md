@@ -1,6 +1,24 @@
 # CLIP_adv
 
-针对 OpenAI [CLIP](https://github.com/openai/CLIP) 的定向对抗攻击演示。脚本在 CIFAR-10 上选取一张图片，用基于梯度的方法（交叉熵 + 梯度下降）将 CLIP 的分类结果迫近到指定目标类别，并把每一步的扰动可视化保存到 `result/`。
+针对 OpenAI [CLIP](https://github.com/openai/CLIP) 的定向 **L∞ PGD** 对抗攻击演示。脚本在 CIFAR-10 上选取一张图片，在 [0, 1] 像素空间内迭代生成扰动 δ，使 ‖δ‖∞ ≤ ε，并把 CLIP 的分类结果定向迫近到指定目标类别。每若干步保存原图、对抗样本、扰动热力图三联可视化到 `result/`。
+
+## 算法
+
+L∞ PGD（targeted），Madry et al. 2018 的标准实现：
+
+```
+δ ← Uniform(-ε, ε)                                  # random start
+for t = 1 .. T:
+    g  ← ∇_δ  CE( f(clip01(x + δ)),  y_target )     # f 内部自带 CLIP 归一化
+    δ  ← δ − α · sign(g)                            # targeted: 反梯度
+    δ  ← clip_{L∞≤ε}(δ)                             # 投影回 ε-ball
+    δ  ← clip01(x + δ) − x                          # 保持像素 ∈ [0,1]
+return x + δ
+```
+
+关键实现要点：
+- ε 预算施加在 **[0, 1] 像素空间**，CLIP 的 mean/std 归一化封装在 forward 内，避免常见的"在归一化空间设 ε"的语义错误。
+- 损失使用 `F.cross_entropy(logits, target_label)`（logits + 类别索引），而非旧版本里把 softmax 概率喂给 CE 的写法。
 
 ## 目录结构
 
@@ -54,21 +72,25 @@ python CLIP_adv.py
 
 首次运行会自动下载 CIFAR-10 数据集和 CLIP `ViT-B/32` 权重。
 
-### 可调参数（位于 `CLIP_adv.py` 顶部 / 中部）
+### 可调参数（位于 `CLIP_adv.py` 顶部）
 
 | 参数 | 含义 | 默认值 |
 | --- | --- | --- |
-| `dataset_choice` | 数据集名称 | `"CIFAR10"` |
-| `target_label` | 攻击目标类别索引（0–9） | `1` (automobile) |
-| `LR` | 梯度更新步长 | `0.5` |
-| `steps` | 迭代轮数 | `30` |
-
-被攻击图像默认取自 `test_data[1]`，可按需替换索引。
+| `DATASET` | 数据集名称 | `"CIFAR10"` |
+| `EPS` | L∞ 扰动预算（[0,1] 像素空间） | `8/255` |
+| `ALPHA` | PGD 单步步长 | `2/255` |
+| `STEPS` | PGD 迭代步数 | `30` |
+| `RANDOM_START` | 是否在 ε-ball 内随机初始化 δ | `True` |
+| `TARGETED` | 定向 / 非定向攻击 | `True` |
+| `TARGET_LABEL` | 攻击目标类别索引（0–9） | `1` (automobile) |
+| `SAMPLE_INDEX` | test set 中被攻击图片的索引 | `1` |
+| `SNAPSHOT_EVERY` | 每多少步保存一次三联可视化 | `5` |
 
 ## 输出
 
-- `result/adv_{step}.png` —— 每 5 步保存一次的 [原图 | 当前对抗样本 | 扰动可视化] 三连图
+- `result/adv_{step}.png` —— [原图 | 当前对抗样本 | `|δ| / ε` 热力图] 三联图
 - `result/result.png` —— 最终对比图：原图预测 vs. 对抗样本预测 vs. 类别概率分布柱状图
+- 终端打印每个 snapshot 步的 loss、p[真类]、p[目标类]，以及最终的实际 L∞ 扰动幅度（应当 ≤ ε）
 
 ## 效果示例
 
